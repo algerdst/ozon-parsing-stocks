@@ -5,6 +5,12 @@ import json
 import requests
 from bs4 import BeautifulSoup
 
+
+with open('class_name.json', 'r', encoding='utf-8') as file:
+    class_dict=json.load(file)
+
+div_class=class_dict['div_class']
+
 payload = {}
 headers = {
     'authority': 'ozon.by',
@@ -22,12 +28,6 @@ headers = {
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 YaBrowser/24.1.0.0 Safari/537.36'
 }
 
-with open('class_name.json', 'r', encoding='utf-8') as file:
-    class_dict=json.load(file)
-
-div_class=class_dict['div_class']
-span_class=class_dict['span_class']
-
 with open('table_data.txt', 'r', encoding='utf-8') as file:
     data = [i for i in file]
 table_name = data[0].replace('\n', '')
@@ -38,27 +38,26 @@ sa = gspread.service_account(filename='secret.json')
 sh = sa.open(table_name)
 wks = sh.worksheet(list_name)
 
-items_quantity = int(input('Укажите количество артикулов в таблице'))  # Количество товаров в таблице
+items_quantity = int(input('Укажите количество товаров в таблице'))  # Количество товаров в таблице
 
-column = 12
-row = 2
-for j in range(items_quantity):
-    article = wks.cell(row, column).value
-    url = f"https://ozon.by/search/?text={article}&from_global=true"
-    time.sleep(0.5)
-    response = requests.request("GET", url, headers=headers, data=payload)
-    if response.status_code != 200:
-        print(f'Ошибка соединения {response.status_code}')
-    soup = BeautifulSoup(response.text, 'lxml')
-    try:
-        stocks = soup.find('div', class_=div_class).find('span', class_=span_class).text.replace('Осталось ',
-                                                                                             '').replace(' шт',
-                                                                                                         '')
-    except:
-        stocks = '-'
-        print('Остаток не найден')
-    wks.update_cell(row, column + 1, stocks)
-    print(f'Артикул {article} обработан')
-    row += 1
-column += 2
+column = 2
+for i in range(4):
+    row = 2
+    for j in range(items_quantity):
+        article = wks.cell(row, column).value
+        url = f"https://ozon.by/search/?text={article}&from_global=true"
+        time.sleep(0.5)
+        response = requests.request("GET", url, headers=headers, data=payload)
+        if response.status_code!=200:
+            print(f'Ошибка соединения {response.status_code}')
+        soup = BeautifulSoup(response.text, 'lxml')
+        try:
+            price = soup.find('div', class_=div_class).find('span').text
+        except:
+            price='-'
+            print('Цена не найдена')
+        wks.update_cell(row, column + 1, price)
+        print(f'Артикул {article} обработан')
+        row += 1
+    column += 2
 
